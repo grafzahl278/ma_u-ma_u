@@ -1,0 +1,313 @@
+#!/usr/bin/python
+#########################################################
+# Spiel Mau Mau
+# (c) 2021 Daniel Kielmann
+#########################################################
+
+import random
+import time
+
+class Spieler():
+    def __init__(self, name, id, ki):
+        self.id = id
+        self.ki = ki #true oder false
+        self.name = name
+        self.cards = []
+    
+    def spielzug(self, deck, game):
+        print("NEUER SPIELZUG\n")
+        # Prüfen, ob Spielzug ok bzw. abgeschlossen ist.
+        valid = False
+        # Aktive Karte ausgeben
+        print(self.name + " ist dran:")
+        while not valid: 
+            print("\n" + 10 * ">" + " Es liegt:  " + deck.aktive_karte.upper() + "  " + 10 * ">" + "\n")           
+            if self.check_sonderkarte(deck)[0] and game.durchlauf_count > 0:
+                #print("1. Abrage")
+                #Prüfen, ob Bube wg. Farbwunsch
+                #if self.check_sonderkarte(deck)[1]:
+                #    self.farbwunsch(deck)                    
+                #    break
+                
+                #Wenn Sonderkarte vom Vorspieler gespielt, dann break
+                if deck.gespielte_sonderkarte != deck.aktive_karte:
+                    #print("2. Abrage")
+                    valid = self.sonderkarte(deck)
+                    break
+
+            if not self.ki:
+                print ("Deine Handkarten:")
+                for i in range(0, len(self.cards)):
+                    print(str(i) + ": " + str(self.cards[i]))
+                
+                eingabe = input("Bitte wählen (0-" + str(len(self.cards)-1) + ") oder (k) für Karte ziehen: ")   
+                print("")       
+                if eingabe.isnumeric():
+                    if int(eingabe) < len(self.cards):
+                        karte_farbe = self.cards[int(eingabe)].split("_")[0].strip()
+                        karte_zahl = self.cards[int(eingabe)].split("_")[1].strip()
+                        if (karte_farbe in deck.aktive_karte) or (karte_zahl in deck.aktive_karte):
+                            deck.ablage_stapel.append(deck.aktive_karte)
+                            deck.aktive_karte = self.cards.pop(int(eingabe))
+                            print("\nDu hast: " + deck.aktive_karte + " gespielt\n")
+                            if self.check_sonderkarte(deck)[1]:
+                                self.farbwunsch(deck)
+                                break
+                            #return deck.aktive_karte
+                        else:
+                            print("Keine passende Karte. Bitte eine andere Karte wählen oder ziehen!")
+                            #self.spielzug(deck, deck.aktive_karte)
+                            continue
+                    else:
+                        print("Falsche Zahl")
+                        #return deck.aktive_karte
+                        #self.spielzug(deck, deck.aktive_karte)
+                        continue
+                elif eingabe.upper() == "K":
+                    print("Du hast eine Karte gezogen!")
+                    self.cards.append(deck.ziehen())   
+
+                elif eingabe.upper() == "EXIT":
+                    return exit
+                elif eingabe.upper() == "NEU":
+                    return eingabe
+                
+                else:
+                    print("Bitte nur eine Zahl eingeben")
+                    continue
+                valid = True
+
+            elif self.ki:
+                time.sleep(1)
+                kartenzug = self.check_wurf(deck)
+                if kartenzug[0]:
+                    print("PC hat * " + kartenzug[1] + " * gespielt\n")
+                    if self.check_sonderkarte(deck)[1]:
+                        self.farbwunsch(deck)
+                        break
+                    else:
+                        time.sleep(1)
+                        # Rückgabe vom PC gespielte Karte als aktive Deckkarte
+                        deck.aktive_karte = kartenzug[1]
+                else:
+                    print("PC hat eine Karte gezogen\n")
+                    time.sleep(1)
+                    self.cards.append(deck.ziehen())
+
+                valid = True
+        
+        if self.ki:
+            print("PC hat noch " + str(len(self.cards)) + " Handkarten\n")
+            time.sleep(1)
+
+        if(len(self.cards)) <= 1:
+            print(self.name + " - LETZTE KARTE!\n")
+
+        return deck.aktive_karte
+    
+    def check_wurf(self, deck):
+        #print("CHECK WURF FUKTION")
+        possible_cards = []
+        karte =""
+        zug_ok = False
+        #print("PC Karten vorher: " + str(self.cards))
+        for card in self.cards:
+            if (card.split("_")[0].strip() in deck.aktive_karte) or (card.split("_")[1].strip() in deck.aktive_karte):
+                possible_cards.append(card)
+        if len(possible_cards) >= 1:
+            if len(possible_cards) == 1:
+                karte = possible_cards[0]
+            else:                
+                karte = random.choice(possible_cards)
+            deck.ablage_stapel.append(deck.aktive_karte)
+            deck.aktive_karte = karte
+            self.cards.remove(karte)
+            zug_ok = True
+        else:
+            zug_ok = False            
+        
+        return zug_ok, karte
+    
+    def check_sonderkarte(self, deck):        
+        check = False
+        Farbwunsch = False
+        if deck.aktive_karte.split("_")[1].strip() == "7":
+            check = True
+        elif deck.aktive_karte.split("_")[1].strip() == "8":
+            check = True
+        elif deck.aktive_karte.split("_")[1].strip() == "Bube":
+            check = True
+            Farbwunsch = True
+        #print("CHECK SONDERKARTE " + str(check))
+        return check, Farbwunsch
+    
+    def farbwunsch(self, deck):
+        farben = {0 : "Kreuz", 1 : "Pik", 2 : "Herz", 3: "Karo"}
+        print("*** Farbwunsch ***")
+        if self.ki:
+            farbauswahl = random.choice(list(farben.items()))
+            print("\nGewünschte Farbe: " + farbauswahl[1])
+            deck.aktive_karte = farbauswahl[1] + "_WUNSCH"
+            deck.gespielte_sonderkarte = deck.aktive_karte
+        else:            
+            print("Bitte wähle: " + str(farben))
+            wunsch = int(input("Wunsch: "))
+            print("\nGewünschte Farbe: " + farben[wunsch])
+            deck.aktive_karte = farben[wunsch] + "_WUNSCH"
+
+            #if deck.aktive_karte.split("_")[1].strip() == "Bube":
+            #    print(self.name + " - SONDERKARTE - Farbwunsch!")
+            #    aktion = True
+            deck.gespielte_sonderkarte = deck.aktive_karte           
+                #nextplayer
+
+    def sonderkarte(self, deck):
+        #7 = 2 ziehen, 8 = aussetzen, Bube = Farbwunsch
+        aktion = False
+        #print("SONDERKARTE FUNKTION")
+        if deck.gespielte_sonderkarte == deck.aktive_karte:
+            #print("Bereits gespielt: " + deck.gespielte_sonderkarte)
+            pass
+
+        elif deck.aktive_karte.split("_")[1].strip() == "7":
+            print(self.name + " - SONDERKARTE - 2 ziehen! Nächter Spieler\n")
+            time.sleep(1)
+            aktion = True
+            gezogen = deck.karten_geben(2)
+            for card in gezogen:
+                self.cards.append(card)
+                #print("eine Karte aufgenommen " + str(card))
+            deck.gespielte_sonderkarte = deck.aktive_karte
+            # nextplayer
+
+        elif deck.aktive_karte.split("_")[1].strip() == "8":
+            print(self.name + " - SONDERKARTE - Aussetzen! Nächster Spieler\n")
+            time.sleep(1)            
+            aktion = True
+            deck.gespielte_sonderkarte = deck.aktive_karte
+            #nextplayer            
+
+        #elif deck.aktive_karte.split("_")[1].strip() == "Bube":
+        #    print(self.name + " - SONDERKARTE - Farbwunsch!")
+        #    aktion = True
+        #    deck.gespielte_sonderkarte = deck.aktive_karte
+            #nextplayer
+        
+        return aktion
+
+class Kartendeck():
+    def __init__(self):
+        #Zahlen 7-10, Bube, Dame, König, Ass
+        self.deck = []
+        self.ablage_stapel = []
+        self.aktive_karte = ""
+        self.gespielte_sonderkarte = ""
+        zahlen = list(range(7, 11))
+        zahlen = zahlen + ["Bube", "Dame", "Koenig", "Ass"]
+        farben = ["Karo", "Herz", "Pik", "Kreuz"]
+        for farbe in farben:
+            for zahl in zahlen:
+                self.deck.append(farbe + "_" + str(zahl))
+    
+    def mischen(self):
+        random.shuffle(self.deck)
+
+    def ziehen(self):
+        karte =  self.deck.pop()
+        return karte
+
+    def karten_geben(self, anzahl):
+        spielkarten = []
+        for _ in range(anzahl):
+            spielkarten.append(self.deck.pop())
+        return spielkarten
+
+class Game():
+    def __init__(self, spieleranzahl):
+        self.spieleranzahl = spieleranzahl
+        self.current_player = 0
+        self.durchlauf_count = 0
+        
+    
+    def next_player(self):
+        if self.current_player == 0:
+            self.current_player = 1
+        elif self.current_player == 1:
+            self.current_player = 0
+
+    
+    def start(self):
+        #Kartendeck erstellen und mischen
+        win = False
+        self.durchlauf_count = 0
+        deck = Kartendeck()
+        deck.mischen()
+        kartenanzahl = 5
+
+        #Spieler erstellen und Karten geben
+        player1 = Spieler("Daniel", 0, False)
+        player1.cards = deck.karten_geben(kartenanzahl)
+        pc = Spieler("Computer", 1, True)
+        pc.cards = deck.karten_geben(kartenanzahl)
+
+        #Spiel starten
+        #deck.aktive_karte = deck.karten_geben(1)[0] #Erste Karte auf Ablagestapel
+        deck.aktive_karte = deck.ziehen() #Erste Karte auf Ablagestapel
+        print(player1.name + " willkommen zu Mau Mau\n")
+        print("Spielkarten werden gemischt...\n")
+        time.sleep(0.5)
+        #print("Handkarten vom PC:")
+        #print(pc.cards)
+        print("***Spielbeginn***\n")
+        time.sleep(1)
+
+        #Spielschleife
+        #Spieler id 0 fängt an
+        while not win:
+            #print("HAUPTSCHLEIFE")
+            if self.current_player == player1.id:
+                player = player1
+                #self.next_player()
+            elif self.current_player == pc.id:
+                player = pc
+                #self.next_player()
+            else:
+                "kein Spieler ausgewählt"
+                break
+            #print("SPIELER DRAN: " + player.name)
+            #spielzug starten
+            deck.aktive_karte = player.spielzug(deck, self)
+            if len(player.cards) == 0:
+                print("\n***SPIELENDE***\n")
+                time.sleep(1)
+                print(player.name + " hat gewonnen!\n")
+                time.sleep(1)
+                print("Gesamt " + str(self.durchlauf_count) + " Züge")
+                win = True
+            elif len(deck.deck) == 0:
+                print("\n***Ablagestapel muss neu gemischt werden***\n")
+                time.sleep(1)
+                deck.deck = deck.ablage_stapel
+                deck.mischen()
+                deck.ablage_stapel = []
+            elif deck.aktive_karte.upper() == "NEU":
+                break
+
+            self.durchlauf_count += 1       
+            #print("Spieldurchlauf: " + str(self.durchlauf_count))
+            self.next_player()
+
+    def play_again(self):
+        eingabe = input("Nochmal spielen? (Y)/(N)")
+        if eingabe.upper() == "Y":
+            return True
+        else:
+            return False
+
+if __name__ == "__main__":
+    newgame = Game(2)
+    newgame.start()
+    while newgame.play_again():
+        newgame.start()
+
+    
